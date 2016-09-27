@@ -1,0 +1,101 @@
+File format: RData 
+Date: 7/19/2016
+Purpose: Excel csv aggregator
+
+function () 
+{
+  if (!require("pacman")) {
+    cat("\nPreparing to install necessary packages...\n")
+    Sys.sleep(2)
+    install.packages("pacman")
+  }
+  easy = readline("\n Would you like assistance with this program? (Say y if you have not used it before)\n")
+  pacman::p_load(XLConnect, tcltk)
+  if (easy == "y") {
+    cat("Welcome to the Data Parser. This smart program shall assist you in any mass data parsing that involves massive data quantities. I'm Nylas, your host!\n")
+    Sys.sleep(1)
+    cat("I'm going to help you along the way to ensure that we get the job done as quick and easy as possible.\n")
+    Sys.sleep(3)
+    cat("This program can currently only support Excel 2007 and above, so if you're using anything older, it won't work :(\n")
+    Sys.sleep(2)
+  }
+  wd = choose.dir(default = "", caption = "Please choose the folder where your files are! - Nylas")
+  setwd(wd)
+  files = list.files(pattern = ".csv")
+  l = length(files)
+  while (length(files) == 0) {
+    cat("\nError! No compatible files in this folder. Are they .csv files? If not, please convert them to .csv.")
+    Sys.sleep(2)
+    wd = choose.dir(default = "", caption = "Try selecting the files again - Nylas")
+    setwd(wd)
+  }
+  ref = data.frame(matrix(ncol = 1, nrow = 1))
+  names(ref) = c("coords")
+  if (easy == "y") {
+    cat("Files located. Perfect!")
+    cat("\nNow, please tell me the cell coordinates for the column variable name that you want aggregated so the program can assign it that variable.")
+    Sys.sleep(1)
+    ref$coords[1] = readline(cat("\nFor example, if the column of interest has an entry at D1 titled 'detached,' then you'd write '4,1' (aka D1), not '4,2' (aka D2), where the data would begin.\n"))
+    Sys.sleep(1)
+  }
+  else {
+    ref$coords[1] = readline(cat("\nFiles Located. Enter your variable-name-cell. (e.g. D1 = '4,2')\n"))
+  }
+  file = files[1]
+  nums = as.numeric(unlist(strsplit(ref$coords[1], ",")))
+  k = -1
+  x = nums[2]
+  y = nums[1]
+  z = nums[2]
+  N = as.character(read.xlsx(file, header = TRUE)[x, y])
+  w = as.character(read.csv(file, header = F)[x, y])
+  while (N != "") {
+    N = as.character(read.csv(file, header = TRUE)[x, y])
+    x = x + 1
+    k = k + 1
+  }
+  cat("\nData Successfully Scanned!\n")
+  total = as.numeric(k)
+  pb = tkProgressBar(title = "Processing Each Spreadsheet", 
+    min = 0, max = total, width = 300)
+  use = data.frame(matrix(ncol = 2, nrow = k))
+  names(use) = c("coord1", "coord2")
+  for (i in 1:k) {
+    use$coord1[i] = z + 1
+    use$coord2[i] = y
+    z = z + 1
+    Sys.sleep(0.1)
+    setTkProgressBar(pb, i, label = paste(round(i/total * 
+      100, 0), "% done"))
+  }
+  output = data.frame(matrix(ncol = (k + 1), nrow = l))
+  names(output)[1] = w
+  for (i in 1:l) {
+    output$File.name[i] = strtrim(files[i], (nchar(files[i]) - 
+      4))
+    file = files[i]
+    for (j in 1:k) {
+      x = use$coord1[j]
+      y = use$coord2[j]
+      output[i, (j + 1)] = as.character(read.csv(file, 
+        header = F)[x, y])
+    }
+  }
+  preview = readline("Aggregate generated. View preview? y/partial/n: ")
+  if (preview == "y") {
+    print(output)
+  }
+  else {
+    if (preview == "partial") {
+      print(head(output))
+    }
+  }
+  filename = choose.dir(default = "", caption = "Select folder to save the aggregate.")
+  setwd(filename)
+  write.csv(output, filename)
+  print("Save successful. Program end.")
+}
+
+RAM:
+
+test = read.xlsx("test.xlsx", header = T, sheetIndex = 1)
