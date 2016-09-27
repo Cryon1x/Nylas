@@ -1,0 +1,167 @@
+File format: RData
+Date: 8/18/2016
+Purpose: Unified data import/processing/export
+Bugs(2): Two features yet to work; error reporting relies on hidden variables to be unititialized, no way to erase them (as of yet) when erasing data
+function () 
+{
+  if (!require("pacman")) {
+    cat("Preparing to install necessary packages...\n")
+    Sys.sleep(2)
+    install.packages("pacman")
+  }
+  pacman::p_load(XLConnect, tcltk, dplyr, plyr, xlsx, reshape, 
+    gdata, stats, gWidgets, gWidgetstcltk, gdata, rlist)
+  x <- function(h) {
+    cat("Please choose the directory where your excel files are. Each excel file should have a number of worksheets under them.\n")
+    .wd = choose.dir(getwd(), "Choose a file.\n")
+    setwd(.wd)
+    .fileindex = list.files(pattern = ".xlsx")
+    while (length(.fileindex) == 0) {
+      cat("Error! No compatible files in this folder. Are they .xlsx files?\n")
+      Sys.sleep(2)
+      wd = choose.dir(default = "", caption = "Try selecting the files again.\n")
+      setwd(wd)
+      .fileindex = list.files(pattern = ".xlsx")
+    }
+    print(.fileindex)
+    assign(".PrimaryFilenames", .fileindex, envir = .GlobalEnv)
+    for (i in length(.fileindex)) {
+      z = .fileindex[[i]]
+      wb = XLConnect::loadWorkbook(paste0(z))
+      lst = as.list(XLConnect::getSheets(wb))
+      if (exists(".lst", envir = .GlobalEnv)) {
+        x = get(".lst", envir = .GlobalEnv)
+        lst = c(x, lst)
+        lst = unique(lst)
+      }
+    }
+    assign(".list", lst, envir = .GlobalEnv)
+    total = as.numeric(length(.fileindex)) * as.numeric(length(lst))
+    pb = tkProgressBar(title = "Importing data...", min = 0, 
+      max = total, width = 900)
+    k = 0
+    h = list()
+    for (.j in 1:length(lst)) {
+      for (.i in 1:length(.fileindex)) {
+        k = k + 1
+        .filename = .fileindex[.i]
+        .data = as.data.frame(read.xlsx(.fileindex[.i], 
+          sheetIndex = .j, as.data.frame = TRUE, header = T))
+        .filename2 = paste(lst[.j], .filename, sep = ".")
+        .filename2 = gsub("-", "", .filename2)
+        .filename2 = gsub(".xlsx", "", .filename2)
+        .filename2 = gsub(" ", "", .filename2)
+        assign(.filename2, .data, envir = .GlobalEnv)
+        setTkProgressBar(pb, k, label = paste(round(k/total * 
+          100, 0), "% done"))
+        h[[.i]] = .filename2
+      }
+      .filename3 = paste(".FileNames", .j, sep = ".")
+      if (exists(.filename3, envir = .GlobalEnv)) {
+        x = get(.filename3, envir = .GlobalEnv)
+        h = c(x, h)
+        h = unique(h)
+      }
+      assign(.filename3, h, envir = .GlobalEnv)
+    }
+    close(pb)
+    save.image(file = "Nylas_Backup.RData")
+  }
+  y <- function(h) {
+    if (exists(".FileNames.1", envir = .GlobalEnv)) {
+      k = 0
+      if (exists(".list", envir = .GlobalEnv)) {
+        lst = get(".list", envir = .GlobalEnv)
+      }
+      else {
+        cat("No imported files found. Please try importing your files again.\n")
+      }
+      z = list()
+      cat("Working...\n")
+      for (k in 1:length(lst)) {
+        .filename = paste(".FileNames", k, sep = ".")
+        h = list()
+        rm(h)
+        h = list()
+        if (exists(.filename, envir = .GlobalEnv)) {
+          x = get(.filename, envir = .GlobalEnv)
+          r = get(".PrimaryFilenames", envir = .GlobalEnv)
+          for (i in 1:length(r)) {
+            y = get(x[[i]], envir = .GlobalEnv)
+            .x = list()
+            .x[[i]] = NROW(y)
+          }
+          tt = max(unlist(.x))
+          for (j in 1:tt) {
+            .name = y[j, 1]
+            TEST = data.frame()
+            for (i in 1:length(x)) {
+              y = get(x[[i]], envir = .GlobalEnv)
+              rr = r[[i]]
+              rr = gsub(".xlsx", "", rr)
+              t = cbind(rr, y[j, ])
+              TEST <- rbind.fill(TEST, t)
+            }
+            colnames(TEST)[1] <- "Dataset"
+            .name = as.character(paste(.name, lst[[k]], 
+              sep = "."))
+            assign(.name, TEST, envir = .GlobalEnv)
+            rm(TEST)
+            h[[j]] = .name
+          }
+          z = c(z, h)
+          z = unique(z)
+        }
+      }
+      assign(".ExportFiles", z, envir = .GlobalEnv)
+      save.image(file = "Nylas Backup.RData")
+      cat("Done!\n")
+    }
+    else {
+      cat("No imported files found. Please try importing your files again.\n")
+    }
+  }
+  z <- function(h) {
+    if (exists(".ExportFiles", envir = .GlobalEnv)) {
+      x = get(".ExportFiles", envir = .GlobalEnv)
+      print(x)
+      cat("Working...\n")
+      for (i in 1:length(x)) {
+        y = get(x[[i]], envir = .GlobalEnv)
+        z = x[i]
+        write.xlsx(y, file = "Exported_Data.xlsx", sheetName = paste0(z), 
+          append = T)
+      }
+      cat("Done!\n")
+    }
+    else {
+      cat("No processed files found. Please try parsing, plotting, or auto-correlating your files again.\n")
+    }
+  }
+  a <- function(h) {
+    keep(Nylas, sure = T)
+    cat("Data Cleared.\n")
+  }
+  b <- function(h) {
+    save.image(file = "Nylas Backup.RData")
+    cat("Saved.\n")
+  }
+  d <- function(h) {
+    cat("Feature not available in Alpha version C\n")
+  }
+  tblst = list(Import = list(handler = x, icon = "open"), 
+    `Clear Data` = list(handler = a, icon = "file"), `Backup Session` = list(handler = b, 
+      icon = "save"), `Generate Hashed Set` = list(handler = y, 
+      icon = "matrix"), `Auto-Correlate All` = list(handler = d, 
+      icon = "barplot"), Plotter = list(handler = d, icon = "plot"), 
+    `Export Environment` = list(handler = z, icon = "ok"))
+  gtoolbar(tblst, cont = TRUE)
+}
+
+
+RAM:
+
+        .filename2 = gsub(".xlsx", ".rda", .filename2)
+        .filename2 = gsub(" ", ".", .filename2)
+        .filename2 = gsub("-", ".", .filename2)
+	write.xlsx("Hashed_Data_Set", x[i], sheetName = "Frodo")
