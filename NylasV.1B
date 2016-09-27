@@ -1,0 +1,50 @@
+File format: RData
+Date: 7/25/2016
+Purpose: Loads .xlsx files into R global environment
+
+function () 
+{
+  if (!require("pacman")) {
+    cat("Preparing to install necessary packages...\n")
+    Sys.sleep(2)
+    install.packages("pacman")
+  }
+  pacman::p_load(XLConnect, tcltk, xlsx, reshape, gdata, stats)
+  cat("Please choose the directory where your excel files are. Each excel file should have a number of worksheets under them.")
+  .wd = choose.dir(getwd(), "Choose a file.")
+  setwd(.wd)
+  .fileindex = list.files(pattern = ".xlsx")
+  while (length(.fileindex) == 0) {
+    cat("\nError! No compatible files in this folder. Are they .xlsx files? ")
+    Sys.sleep(2)
+    wd = choose.dir(default = "", caption = "Try selecting the files again.")
+    setwd(wd)
+  }
+  file.copy(.fileindex[1], "Temp.xlsx")
+  wb = XLConnect::loadWorkbook("Temp.xlsx")
+  lst = as.list(XLConnect::getSheets(wb))
+  total = as.numeric(length(.fileindex)) * as.numeric(length(lst))
+  pb = tkProgressBar(title = "Importing data... | NYLAS - from the desk of Vikrant Sharma (sindpower@hotmail.com)", 
+    min = 0, max = total, width = 900)
+  file.remove("temp.xlsx")
+  k = 0
+  for (.j in 1:length(lst)) {
+    for (.i in 1:length(.fileindex)) {
+      k = k + 1
+      .filename = .fileindex[.i]
+      .data = as.data.frame(read.xlsx(.fileindex[.i], 
+        sheetIndex = 1, as.data.frame = TRUE, header = T))
+      .filename2 = paste(lst[.j], .filename, sep = ".")
+      .filename2 = gsub(".xlsx", ".rda", .filename2)
+      .filename2 = gsub(" ", "-", .filename2)
+      assign(.filename2, .data, envir = .GlobalEnv)
+      setTkProgressBar(pb, k, label = paste(round(k/total * 
+        100, 0), "% done"))
+    }
+  }
+  close(pb)
+  save.image()
+}
+
+RAM:
+
